@@ -62,8 +62,8 @@ function assignPackages(drones, packages){
   let results = {assignments: [], packages: []}
 
   for(let i = 0; i < packages.length; i++){
-    let assignment = findDrone(packages[i], drones)
-    if(assignment.droneId === 0){
+    let assignment = findAssignment(packages[i], drones)
+    if(assignment.droneId === null){
       results.packages.push(packages[i].packageId)
     } else {
       results.assignments.push(assignment)
@@ -73,53 +73,59 @@ function assignPackages(drones, packages){
   console.log(results)
 }
 
-function findDrone(pack, drones){
-  let assignment = {droneId: 0, packageId: 0}
+function findAssignment(pack, drones){
+  let assignment = {droneId: null, packageId: null}
   let minTime = 0
   let minIndx = -1
-  let estimatedReturn
+  let travelTime
 
   for(let i = 0; i < drones.length; i++){
     if(drones[i].packages.length){
-      estimatedReturn = droneTimeBackToDepot(drones[i]) + droneTimeToDelivery(drones[i])
+      travelTime = timeToCurrentDelivery(drones[i]) + timeBackToDepot(drones[i])
     } else {
-      estimatedReturn = droneTimeBackToDepot(drones[i])
+      travelTime = timeBackToDepot(drones[i])
     }
-    if(doesNotMeetDeadLine(estimatedReturn, pack)){
-      continue
-    } else {
-      if(minTime === 0 || minTime > estimatedReturn){
-        minTime = estimatedReturn
+    if(meetsDeadLine(travelTime, pack) && isLessThanMin(travelTime, minTime)){
+        minTime = travelTime
         assignment["droneId"] = drones[i].droneId
         assignment["packageId"] = pack.packageId
         minIndx = i
-      }
+    } else {
+      continue
     }
   }
-  drones.splice(minIndx, 1)
+  if(minIndx !== -1)drones.splice(minIndx, 1)
   return assignment
 }
 
-function doesNotMeetDeadLine(estimatedReturn, pack){
+function isLessThanMin(travelTime, minTime){
+  if(minTime === 0){
+    return true
+  } else {
+    return minTime > travelTime
+  }
+}
+
+function meetsDeadLine(travelTime, pack){
   let destination = {lat: pack.destination.latitude, lon: pack.destination.longitude}
   let distance = geodist(depot, destination, options)
   let deliveryTime = calculateTravelTime(distance)
-  return currentTime + estimatedReturn + deliveryTime > pack.deadline
+  return currentTime + travelTime + deliveryTime < pack.deadline
 }
 
-function droneTimeBackToDepot(drone){
-  let start
+function timeBackToDepot(drone){
+  let startLocation
   if(drone.packages.length){
-    start = {lat: drone.packages[0].destination.latitude, lon: drone.packages[0].destination.longitude}
+    startLocation = {lat: drone.packages[0].destination.latitude, lon: drone.packages[0].destination.longitude}
   } else {
-    start = {lat: drone.location.latitude, lon: drone.location.longitude }
+    startLocation = {lat: drone.location.latitude, lon: drone.location.longitude }
   }
-  let distance = geodist(start, depot, options)
+  let distance = geodist(startLocation, depot, options)
   let time = calculateTravelTime(distance)
   return time
 }
 
-function droneTimeToDelivery(drone){
+function timeToCurrentDelivery(drone){
   let droneLoc = {lat: drone.location.latitude, lon: drone.location.longitude }
   let packLoc = {lat: drone.packages[0].destination.latitude, lon: drone.packages[0].destination.longitude}
   let distance = geodist(droneLoc, packLoc, options)
@@ -133,7 +139,7 @@ function calculateTravelTime(distance){
 }
 
 
-function getDataAndAnalyze(){
+function getAndAnalyzeData(){
   let drones = []
   let packages = []
   fetch('https://codetest.kube.getswift.co/drones')
@@ -146,5 +152,5 @@ function getDataAndAnalyze(){
   .then(() => assignPackages(drones, packages))
 }
 
-//getDataAndAnalyze()
+//getAndAnalyzeData()
 assignPackages(dronesTest, packagesTest)
