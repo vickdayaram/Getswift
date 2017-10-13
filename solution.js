@@ -40,7 +40,7 @@ let packagesTest = [
             "longitude": 144.85238118232522
         },
         "packageId": 8041,
-        "deadline": 1590000000
+        "deadline": 1590425202
     },
     {
         "destination": {
@@ -48,7 +48,7 @@ let packagesTest = [
             "longitude": 144.85157121265505
         },
         "packageId": 8218,
-        "deadline": 1500423287
+        "deadline": 1507859000
     }
 ]
 
@@ -63,7 +63,7 @@ function assignPackages(drones, packages){
 
   for(let i = 0; i < packages.length; i++){
     let assignment = findDrone(packages[i], drones)
-    if(assignment.time === 0){
+    if(assignment.droneId === 0){
       results.packages.push(packages[i].packageId)
     } else {
       results.assignments.push(assignment)
@@ -74,39 +74,40 @@ function assignPackages(drones, packages){
 }
 
 function findDrone(pack, drones){
-  let minTime = {time: 0, droneId: 0, packageId: 0}
+  let assignment = {droneId: 0, packageId: 0}
+  let minTime = 0
+  let minIndx = -1
   let estimatedReturn
-  let deliveryTime
+
   for(let i = 0; i < drones.length; i++){
     if(drones[i].packages.length){
-      deliveryTime = calcTimeToDelivery(drones[i])
-      estimatedReturn = calcTimeBackToDepot(drones[i])
-      estimatedReturn = estimatedReturn + deliveryTime
+      estimatedReturn = droneTimeBackToDepot(drones[i]) + droneTimeToDelivery(drones[i])
     } else {
-      estimatedReturn = calcTimeBackToDepot(drones[i])
+      estimatedReturn = droneTimeBackToDepot(drones[i])
     }
-  if(doesNotMeetDeadLine(estimatedReturn, pack.deadline)){
-    continue
-  } else {
-    if(minTime.time === 0){
-      minTime["time"] = estimatedReturn
-      minTime["droneId"] = drones[i].droneId
-      minTime["packageId"] = pack.packageId
-    } else if(minTime.time > estimatedReturn){
-      minTime["time"] = estimatedReturn
-      minTime["droneId"] = drones[i].droneId
-      minTime["packageId"] = pack.packageId
+    if(doesNotMeetDeadLine(estimatedReturn, pack)){
+      continue
+    } else {
+      if(minTime === 0 || minTime > estimatedReturn){
+        minTime = estimatedReturn
+        assignment["droneId"] = drones[i].droneId
+        assignment["packageId"] = pack.packageId
+        minIndx = i
+      }
     }
   }
-}
-  return minTime
-}
-
-function doesNotMeetDeadLine(droneTime, deadline){
-  return droneTime + currentTime > deadline
+  drones.splice(minIndx, 1)
+  return assignment
 }
 
-function calcTimeBackToDepot(drone){
+function doesNotMeetDeadLine(estimatedReturn, pack){
+  let destination = {lat: pack.destination.latitude, lon: pack.destination.longitude}
+  let distance = geodist(depot, destination, options)
+  let deliveryTime = calculateTravelTime(distance)
+  return currentTime + estimatedReturn + deliveryTime > pack.deadline
+}
+
+function droneTimeBackToDepot(drone){
   let start
   if(drone.packages.length){
     start = {lat: drone.packages[0].destination.latitude, lon: drone.packages[0].destination.longitude}
@@ -114,38 +115,36 @@ function calcTimeBackToDepot(drone){
     start = {lat: drone.location.latitude, lon: drone.location.longitude }
   }
   let distance = geodist(start, depot, options)
-  let time = calculateTime(distance)
+  let time = calculateTravelTime(distance)
   return time
 }
 
-function calcTimeToDelivery(drone){
+function droneTimeToDelivery(drone){
   let droneLoc = {lat: drone.location.latitude, lon: drone.location.longitude }
   let packLoc = {lat: drone.packages[0].destination.latitude, lon: drone.packages[0].destination.longitude}
   let distance = geodist(droneLoc, packLoc, options)
-  let time = calculateTime(distance)
+  let time = calculateTravelTime(distance)
   return time
 }
 
-function calculateTime(distance){
+function calculateTravelTime(distance){
   let time = (distance/50) * 3600
   return time
 }
+
 
 function getDataAndAnalyze(){
   let drones = []
   let packages = []
   fetch('https://codetest.kube.getswift.co/drones')
-  .then(function(res){
-    drones = res
-  })
+  .then(res => res.json())
+  .then(json => drones = json)
 
   fetch('https://codetest.kube.getswift.co/packages')
-  .then(json => {
-    packages = json.body["_events"]
-    console.log(packages)
-    assignPackages(drones, packages)}
-  )
+  .then(res => res.json())
+  .then(json => packages = json)
+  .then(() => assignPackages(drones, packages))
 }
 
-
-getDataAndAnalyze()
+//getDataAndAnalyze()
+assignPackages(dronesTest, packagesTest)
