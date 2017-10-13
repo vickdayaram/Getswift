@@ -1,62 +1,9 @@
 require('es6-promise').polyfill();
 require('isomorphic-fetch');
 
-
-let dronesTest = [
-    {
-        "droneId": 321361,
-        "location": {
-            "latitude": -37.78290448241537,
-            "longitude": 144.85335277520906
-        },
-        "packages": [
-            {
-                "destination": {
-                    "latitude": -37.78389758422243,
-                    "longitude": 144.8574574322506
-                },
-                "packageId": 7645,
-                "deadline": 1500422916
-            }
-        ]
-    },
-    {
-        "droneId": 493959,
-        "location": {
-            "latitude": -37.77718638788778,
-            "longitude": 144.8603578487479
-        },
-        "packages": []
-    }
-]
-
-
-
-
-let packagesTest = [
-    {
-        "destination": {
-            "latitude": -37.78404125474984,
-            "longitude": 144.85238118232522
-        },
-        "packageId": 8041,
-        "deadline": 1590425202
-    },
-    {
-        "destination": {
-            "latitude": -37.77058198385452,
-            "longitude": 144.85157121265505
-        },
-        "packageId": 8218,
-        "deadline": 1507859000
-    }
-]
-
 const geodist = require('geodist')
 const depot = {lat: -37.816218, lon: 144.964068}
 const options = {exact: true, unit: 'km'}
-const currentTime = Math.round((new Date).getTime()/1000);
-
 
 function assignPackages(drones, packages){
   let results = {assignments: [], packages: []}
@@ -69,7 +16,6 @@ function assignPackages(drones, packages){
       results.assignments.push(assignment)
     }
   }
-
   console.log(results)
 }
 
@@ -77,14 +23,9 @@ function findAssignment(pack, drones){
   let assignment = {droneId: null, packageId: null}
   let minTime = 0
   let minIndx = -1
-  let travelTime
 
   for(let i = 0; i < drones.length; i++){
-    if(drones[i].packages.length){
-      travelTime = timeToCurrentDelivery(drones[i]) + timeBackToDepot(drones[i])
-    } else {
-      travelTime = timeBackToDepot(drones[i])
-    }
+    let travelTime = droneTravelTime(drones[i])
     if(meetsDeadLine(travelTime, pack) && isLessThanMin(travelTime, minTime)){
         minTime = travelTime
         assignment["droneId"] = drones[i].droneId
@@ -98,6 +39,16 @@ function findAssignment(pack, drones){
   return assignment
 }
 
+function droneTravelTime(drone){
+  let time
+  if(drone.packages.length){
+    time = timeToCurrentDelivery(drone) + timeBackToDepot(drone)
+  } else {
+    time = timeBackToDepot(drone)
+  }
+  return time
+}
+
 function isLessThanMin(travelTime, minTime){
   if(minTime === 0){
     return true
@@ -107,6 +58,7 @@ function isLessThanMin(travelTime, minTime){
 }
 
 function meetsDeadLine(travelTime, pack){
+  let currentTime = Math.round((new Date).getTime()/1000)
   let destination = {lat: pack.destination.latitude, lon: pack.destination.longitude}
   let distance = geodist(depot, destination, options)
   let deliveryTime = calculateTravelTime(distance)
@@ -139,18 +91,25 @@ function calculateTravelTime(distance){
 }
 
 
-function getAndAnalyzeData(){
+function fetchAndAnalyzeData(){
   let drones = []
   let packages = []
-  fetch('https://codetest.kube.getswift.co/drones')
-  .then(res => res.json())
-  .then(json => drones = json)
+  let promises = [
+      fetch('https://codetest.kube.getswift.co/drones')
+      .then(res => res.json())
+      .then(json => drones = json) ,
 
-  fetch('https://codetest.kube.getswift.co/packages')
-  .then(res => res.json())
-  .then(json => packages = json)
+      fetch('https://codetest.kube.getswift.co/packages')
+      .then(res => res.json())
+      .then(json => packages = json)
+  ]
+
+  Promise.all(promises)
   .then(() => assignPackages(drones, packages))
+  .catch(err => {
+    console.log('error', err)
+    return
+  })
 }
 
-//getAndAnalyzeData()
-assignPackages(dronesTest, packagesTest)
+fetchAndAnalyzeData()

@@ -1,0 +1,57 @@
+
+1.How did you implement your solution?
+
+  My solution iterates through each package, and then iterates through
+  the available drones.
+
+  I ask two questions during the iteration.
+
+  1. Given the drones situation, will it be able to deliver this package
+     within the packages deadline.
+  2. Will this drone be able to do it faster than another drone that can
+     also deliver the package.
+
+  As I iterate through I am storing the most recent drone that meet these requirements
+  in an assignment object. If I find a drone that can deliver the package faster
+  I update the assignment object.
+
+  Once I complete the iteration I check the value of the object and if an
+  assignment exists I add it to the assignments. Else I add the package id
+  to the packages.
+
+2.Why did you implement it this way?
+
+  As I read through the problem I knew that it was going to involve
+  some iteration. Since the problem was interested in finding the drone
+  that could deliver each package in the quickest way, I decided to iterate
+  over each package, and then each available drone. This way I could compare
+  each drones time to delivery, and find the one with the quickest time
+  for that specific package.
+
+
+3.Let's assume we need to handle dispatching thousands of jobs per second to
+thousands of drivers. Would the solution you've implemented still work?
+Why or why not? What would you modify? Feel free to describe a completely
+different solution than the one you've developed.
+
+  The time complexity of my solution is quadratic. As the number of drones and
+  packages increased performance would suffer terribly.
+
+  I would need to find a way to assign the package without having to iterate
+  over all the drones...
+
+  One way that comes to mind would be to sort the drones by the time that
+  they would take to return to the depot. We could sort them by implementing
+  mergeSort, or quickSort which should result in a much better time complexity.
+
+  With this sorted data we would know that the drone at index 0 is the one
+  that will return to the depot the fastest. As long as the drones time back to
+  the depot, plus time to delivery is less than the deadline, this would be
+  the fastest drone for that package.
+
+  This solution would still slow down as the number of drones and packages increased
+  but not nearly as bad as my initial solution.
+
+  I thought of this solution as typing up my response to this question. I actually
+  added an additional file with my implementation of this solution. I was able
+  to recycle much of my initial code which made it simple.
